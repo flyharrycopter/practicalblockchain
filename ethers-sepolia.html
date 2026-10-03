@@ -1,0 +1,1740 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+
+<title>OGM - Ethereum Transaction Lab</title>
+
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.15.0/dist/ethers.umd.min.js"></script>
+
+<style>
+
+body {
+    font-family: Arial, sans-serif;
+    max-width: 1100px;
+    margin: 30px auto;
+    padding: 0 20px;
+    line-height: 1.5;
+}
+
+h1 {
+    margin-bottom: 5px;
+}
+
+.subtitle {
+    margin-top: 0;
+    font-weight: bold;
+}
+
+.box {
+    border: 1px solid #bbb;
+    border-radius: 8px;
+    padding: 18px;
+    margin: 18px 0;
+}
+
+.info {
+    background: #eef7fb;
+}
+
+.warn {
+    background: #fff8e5;
+}
+
+.good {
+    background: #eefbf1;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+td, th {
+    border: 1px solid #ccc;
+    padding: 9px;
+    text-align: left;
+}
+
+input {
+    padding: 8px;
+    width: 95%;
+    max-width: 650px;
+    font-family: Consolas, monospace;
+}
+
+button {
+    padding: 9px 16px;
+    cursor: pointer;
+    margin: 4px;
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+code {
+    background: #eee;
+    padding: 2px 5px;
+}
+
+pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.mono {
+    font-family: Consolas, monospace;
+    word-break: break-all;
+}
+
+.errorText {
+    color: #b00020;
+    font-weight: bold;
+}
+
+.successText {
+    color: #146c2e;
+    font-weight: bold;
+}
+
+.errorBox {
+    background: #ffe5e5;
+    color: #b00020;
+    border: 3px solid #b00020;
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 15px;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.successBox {
+    background: #e8f8ec;
+    color: #146c2e;
+    border: 3px solid #146c2e;
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 15px;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+<h1>Ethereum Transaction Lab</h1>
+
+<p class="subtitle">
+ethers.js + MetaMask + Sepolia Testnet
+</p>
+
+
+<!-- ================================================== -->
+<!-- INTRODUCTION                                       -->
+<!-- ================================================== -->
+
+<div class="box info">
+
+<h2>What are we doing?</h2>
+
+<p>
+This practical demonstrates how a JavaScript application can interact
+with Ethereum using <b>ethers.js</b> and <b>MetaMask</b>.
+</p>
+
+<p>
+The application never receives your private key.
+MetaMask controls the account and asks the user to approve/sign transactions.
+</p>
+
+<pre>
+JavaScript Application
+        ↓
+     ethers.js
+        ↓
+ BrowserProvider
+        ↓
+     MetaMask
+        ↓
+      Signer
+        ↓
+ Sepolia Testnet
+</pre>
+
+</div>
+
+
+
+<!-- ================================================== -->
+<!-- CONNECT WALLET                                     -->
+<!-- ================================================== -->
+
+<div class="box">
+
+<h2>1. Connect Ethereum Wallet</h2>
+
+<button onclick="connectWallet()">
+Connect MetaMask
+</button>
+
+<button onclick="switchToSepolia()">
+Switch to Sepolia
+</button>
+
+
+<table>
+
+<tr>
+    <th>Item</th>
+    <th>Detected Value</th>
+</tr>
+
+<tr>
+    <td>MetaMask detected</td>
+    <td id="metamask">Not checked</td>
+</tr>
+
+<tr>
+    <td>MetaMask raw Chain ID</td>
+    <td id="rawChain">-</td>
+</tr>
+
+<tr>
+    <td>ethers.js Chain ID</td>
+    <td id="ethersChain">-</td>
+</tr>
+
+<tr>
+    <td>Expected Network</td>
+    <td><b>Sepolia</b></td>
+</tr>
+
+<tr>
+    <td>Expected Chain ID</td>
+    <td>
+        <b>11155111 / 0xaa36a7</b>
+    </td>
+</tr>
+
+<tr>
+    <td><b>Network Validation</b></td>
+    <td id="networkValidation">
+        <b>NOT CHECKED</b>
+    </td>
+</tr>
+
+<tr>
+    <td>Connected Account / Sender</td>
+    <td id="sender" class="mono">-</td>
+</tr>
+
+<tr>
+    <td><b>Account / Signer Validation</b></td>
+    <td id="accountValidation"><b>NOT CHECKED</b></td>
+</tr>
+
+<tr>
+    <td>Sender Balance</td>
+    <td id="balance">-</td>
+</tr>
+
+</table>
+
+
+<div id="networkAlert"></div>
+<div id="accountAlert"></div>
+
+
+<p>
+<b>Concept:</b>
+<code>msg.sender</code> identified the caller inside our Solidity
+contract. Here, the transaction sender is represented by the
+MetaMask <b>Signer</b>.
+</p>
+
+</div>
+
+
+
+<!-- ================================================== -->
+<!-- PROVIDER VS SIGNER                                 -->
+<!-- ================================================== -->
+
+<div class="box info">
+
+<h2>2. Provider vs Signer</h2>
+
+<table>
+
+<tr>
+    <th>Component</th>
+    <th>Purpose</th>
+</tr>
+
+<tr>
+    <td><b>Provider</b></td>
+    <td>
+        Connects the JavaScript application to an Ethereum network.
+    </td>
+</tr>
+
+<tr>
+    <td><b>Signer</b></td>
+    <td>
+        Represents an account capable of authorizing and signing transactions.
+    </td>
+</tr>
+
+<tr>
+    <td><b>MetaMask</b></td>
+    <td>
+        Protects the private key and asks the user to approve transactions.
+    </td>
+</tr>
+
+<tr>
+    <td><b>Sepolia</b></td>
+    <td>
+        Public Ethereum testnet on which this practical is performed.
+    </td>
+</tr>
+
+</table>
+
+</div>
+
+
+
+<!-- ================================================== -->
+<!-- PREPARE TRANSACTION                                -->
+<!-- ================================================== -->
+
+<div class="box">
+
+<h2>3. Prepare SepETH Transfer</h2>
+
+<p>
+<b>Sender:</b><br>
+<span id="txSender" class="mono">
+Connect MetaMask first
+</span>
+</p>
+
+
+<label>
+<b>Receiver Address:</b>
+</label>
+
+<br>
+
+<input
+    id="receiver"
+    placeholder="0x..."
+>
+
+<br><br>
+
+
+<label>
+<b>Amount (SepETH):</b>
+</label>
+
+<br>
+
+<input
+    id="amount"
+    value="0.1"
+>
+
+<br><br>
+
+
+<button
+    id="previewButton"
+    onclick="previewTransaction()"
+    disabled
+>
+Preview Transaction
+</button>
+
+
+<p>
+<b>Safety:</b>
+Preview remains disabled until the application independently verifies
+both the Sepolia network and the active MetaMask account / ethers.js Signer.
+</p>
+
+</div>
+
+
+
+<!-- ================================================== -->
+<!-- TRANSACTION PREVIEW                                -->
+<!-- ================================================== -->
+
+<div class="box warn">
+
+<h2>4. Transaction Preview</h2>
+
+<table>
+
+<tr>
+    <td>From</td>
+    <td id="previewFrom" class="mono">-</td>
+</tr>
+
+<tr>
+    <td>To</td>
+    <td id="previewTo" class="mono">-</td>
+</tr>
+
+<tr>
+    <td>Amount (SepETH)</td>
+    <td id="previewETH">-</td>
+</tr>
+
+<tr>
+    <td>Amount (wei)</td>
+    <td id="previewWei">-</td>
+</tr>
+
+<tr>
+    <td>Network</td>
+    <td id="previewNetwork">-</td>
+</tr>
+
+</table>
+
+<br>
+
+
+<button
+    id="sendButton"
+    onclick="sendEther()"
+    disabled
+>
+Send Transaction
+</button>
+
+
+<p>
+Clicking <b>Send Transaction</b> does not bypass MetaMask.
+MetaMask must still approve and sign the transaction.
+</p>
+
+</div>
+
+
+
+<!-- ================================================== -->
+<!-- STATUS                                             -->
+<!-- ================================================== -->
+
+<div class="box">
+
+<h2>5. Transaction Status</h2>
+
+<pre id="status">Ready.</pre>
+
+</div>
+
+
+
+<!-- ================================================== -->
+<!-- CONFIRMED TRANSACTION                              -->
+<!-- ================================================== -->
+
+<div class="box good">
+
+<h2>6. Confirmed Transaction</h2>
+
+<table>
+
+<tr>
+    <td>Transaction Hash</td>
+    <td id="txHash" class="mono">-</td>
+</tr>
+
+<tr>
+    <td>Block Number</td>
+    <td id="blockNumber">-</td>
+</tr>
+
+<tr>
+    <td>Sender Balance After Transaction</td>
+    <td id="newBalance">-</td>
+</tr>
+
+</table>
+
+</div>
+
+
+
+<!-- ================================================== -->
+<!-- KEY CONCEPTS                                       -->
+<!-- ================================================== -->
+
+<div class="box info">
+
+<h2>Key Concepts</h2>
+
+<ul>
+
+<li>
+<b>1 SepETH = 10<sup>18</sup> wei</b>
+for denomination/conversion purposes.
+</li>
+
+<li>
+<code>ethers.parseEther("0.1")</code>
+converts 0.1 SepETH into
+<code>100000000000000000</code> wei.
+</li>
+
+<li>
+The <b>Provider</b> gives the application access to Ethereum.
+</li>
+
+<li>
+The <b>Signer</b> represents the currently authorized MetaMask account.
+</li>
+
+<li>
+The private key remains protected by MetaMask.
+</li>
+
+<li>
+The receiver needs only a valid Ethereum address.
+</li>
+
+<li>
+The sender transfers SepETH and also pays the transaction gas fee.
+</li>
+
+<li>
+The receiver receives the transferred SepETH and does not pay the sender's gas.
+</li>
+
+<li>
+Changing the active MetaMask account changes the transaction <b>Signer / Sender</b>.
+The dApp revalidates and refreshes the sender before another transaction can be prepared.
+</li>
+
+<li>
+The application locks the Send button as soon as a transaction request begins,
+preventing accidental duplicate submission from repeated clicks.
+</li>
+
+<li>
+A transaction hash uniquely identifies the submitted Ethereum transaction.
+</li>
+
+<li>
+This application allows transactions only after verifying
+<b>Sepolia Chain ID 11155111</b>.
+</li>
+
+</ul>
+
+</div>
+
+
+
+<script>
+
+/* ====================================================
+   GLOBAL STATE
+==================================================== */
+
+let provider = null;
+let signer = null;
+let sender = null;
+let networkVerified = false;
+let accountVerified = false;
+let transactionInProgress = false;
+let watcherBusy = false;
+let lastObservedChainId = null;
+let lastObservedAccount = null;
+
+
+
+/* ====================================================
+   UI SAFETY FUNCTIONS
+==================================================== */
+
+function disableTransactions() {
+    networkVerified = false;
+    accountVerified = false;
+
+    document.getElementById("previewButton").disabled = true;
+    document.getElementById("sendButton").disabled = true;
+}
+
+function clearPreview() {
+    document.getElementById("previewFrom").innerText = "-";
+    document.getElementById("previewTo").innerText = "-";
+    document.getElementById("previewETH").innerText = "-";
+    document.getElementById("previewWei").innerText = "-";
+    document.getElementById("previewNetwork").innerText = "-";
+    document.getElementById("sendButton").disabled = true;
+}
+
+function enablePreview() {
+    if (networkVerified && accountVerified && !transactionInProgress) {
+        document.getElementById("previewButton").disabled = false;
+    } else {
+        document.getElementById("previewButton").disabled = true;
+    }
+
+    // A fresh preview is always required before Send.
+    document.getElementById("sendButton").disabled = true;
+}
+
+function showAccountMismatch(message) {
+    accountVerified = false;
+    document.getElementById("previewButton").disabled = true;
+    document.getElementById("sendButton").disabled = true;
+
+    document.getElementById("accountValidation").innerHTML =
+        "<span class='errorText'>MISMATCH / REVALIDATION REQUIRED ❌</span>";
+
+    const alert = document.getElementById("accountAlert");
+    alert.className = "errorBox";
+    alert.innerHTML =
+        "⚠ ACCOUNT / SIGNER MISMATCH — TRANSACTION BLOCKED" +
+        "<br><br>" + message;
+}
+
+function showAccountVerified() {
+    accountVerified = true;
+
+    document.getElementById("accountValidation").innerHTML =
+        "<span class='successText'>MATCH — SIGNER VERIFIED ✓</span>";
+
+    const alert = document.getElementById("accountAlert");
+    alert.className = "successBox";
+    alert.innerHTML =
+        "✓ ACCOUNT / SIGNER VERIFIED" +
+        "<br>" +
+        "MetaMask active account matches the ethers.js Signer / Sender.";
+}
+
+/*
+   Defensive account check.
+
+   We do NOT rely only on the accountsChanged event.
+   Preview and Send call this function again immediately
+   before allowing a transaction operation.
+*/
+async function verifyCurrentAccount() {
+    if (!window.ethereum || !provider || !signer || !sender) {
+        showAccountMismatch(
+            "No verified MetaMask signer is currently available."
+        );
+        return false;
+    }
+
+    const accounts = await window.ethereum.request({
+        method: "eth_accounts"
+    });
+
+    if (!accounts || accounts.length === 0) {
+        showAccountMismatch(
+            "No MetaMask account is currently authorized for this dApp."
+        );
+        return false;
+    }
+
+    const activeAccount = accounts[0];
+    const signerAddress = await signer.getAddress();
+
+    const activeMatchesSender =
+        activeAccount.toLowerCase() === sender.toLowerCase();
+
+    const signerMatchesSender =
+        signerAddress.toLowerCase() === sender.toLowerCase();
+
+    if (!activeMatchesSender || !signerMatchesSender) {
+        showAccountMismatch(
+            "MetaMask active account: " + activeAccount +
+            "<br>Stored Sender: " + sender +
+            "<br><br>Reconnect / revalidate the active account before continuing."
+        );
+        return false;
+    }
+
+    showAccountVerified();
+    return true;
+}
+
+
+/* ====================================================
+   CONNECT METAMASK
+==================================================== */
+
+
+
+async function connectWallet() {
+
+    const status =
+        document.getElementById("status");
+
+    disableTransactions();
+    clearPreview();
+
+    document.getElementById("accountValidation").innerHTML =
+        "<b>CHECKING...</b>";
+    document.getElementById("accountAlert").className = "";
+    document.getElementById("accountAlert").innerHTML = "";
+
+    try {
+
+        if (!window.ethereum) {
+
+            document.getElementById("metamask").innerHTML =
+                "<span class='errorText'>NO ❌</span>";
+
+            throw new Error(
+                "MetaMask not detected."
+            );
+        }
+
+
+        document.getElementById("metamask").innerHTML =
+            "<span class='successText'>YES ✓</span>";
+
+
+        /*
+           Ask MetaMask directly which chain it is
+           exposing to this dApp.
+        */
+
+        const rawChainId =
+            await window.ethereum.request({
+                method: "eth_chainId"
+            });
+
+
+        document.getElementById("rawChain").innerText =
+            rawChainId;
+
+
+        /*
+           Wrap MetaMask's injected provider.
+        */
+
+        provider =
+            new ethers.BrowserProvider(
+                window.ethereum
+            );
+
+
+        /*
+           Ask for permission to access MetaMask account(s).
+        */
+
+        await provider.send(
+            "eth_requestAccounts",
+            []
+        );
+
+
+        /*
+           Obtain the currently selected MetaMask signer.
+        */
+
+        signer =
+            await provider.getSigner();
+
+
+        sender =
+            await signer.getAddress();
+
+
+        document.getElementById("sender").innerText =
+            sender;
+
+
+        document.getElementById("txSender").innerText =
+            sender;
+
+        /*
+           Independently verify that MetaMask's currently
+           authorized account matches our Signer / Sender.
+        */
+        const accountOK = await verifyCurrentAccount();
+
+        if (!accountOK) {
+            throw new Error(
+                "ACCOUNT / SIGNER MISMATCH — TRANSACTION BLOCKED."
+            );
+        }
+
+
+        /*
+           Ask ethers.js which network it sees.
+        */
+
+        const network =
+            await provider.getNetwork();
+
+
+        document.getElementById("ethersChain").innerText =
+            network.chainId.toString();
+
+
+        /*
+           HARD SAFETY GATE:
+           Only Sepolia is accepted.
+        */
+
+        if (network.chainId !== 11155111n) {
+
+            document.getElementById("networkValidation").innerHTML =
+                "<span class='errorText'>" +
+                "MISMATCH ❌" +
+                "</span>";
+
+
+            const alert =
+                document.getElementById("networkAlert");
+
+
+            alert.className =
+                "errorBox";
+
+
+            alert.innerHTML =
+                "⚠ NETWORK MISMATCH — TRANSACTION BLOCKED" +
+                "<br><br>" +
+
+                "Detected by MetaMask: " +
+                rawChainId +
+
+                "<br>" +
+
+                "Detected by ethers.js: " +
+                network.chainId.toString() +
+
+                "<br><br>" +
+
+                "Required Network: SEPOLIA" +
+
+                "<br>" +
+
+                "Required Chain ID: " +
+                "11155111 / 0xaa36a7" +
+
+                "<br><br>" +
+
+                "DO NOT SEND A TRANSACTION." +
+
+                "<br>" +
+
+                "CLICK 'SWITCH TO SEPOLIA' ABOVE.";
+
+
+            document.getElementById("balance").innerText =
+                "NOT READ — WRONG NETWORK";
+
+
+            throw new Error(
+                "NETWORK MISMATCH — SEPOLIA REQUIRED.\n" +
+                "TRANSACTION FUNCTIONS HAVE BEEN DISABLED."
+            );
+        }
+
+
+        /*
+           NETWORK VERIFIED
+        */
+
+        networkVerified = true;
+
+
+        document.getElementById("networkValidation").innerHTML =
+            "<span class='successText'>" +
+            "MATCH — SEPOLIA VERIFIED ✓" +
+            "</span>";
+
+
+        const alert =
+            document.getElementById("networkAlert");
+
+
+        alert.className =
+            "successBox";
+
+
+        alert.innerHTML =
+            "✓ NETWORK VERIFIED — SEPOLIA" +
+
+            "<br>" +
+
+            "Chain ID: 11155111 / 0xaa36a7" +
+
+            "<br>" +
+
+            "TRANSACTIONS MAY PROCEED.";
+
+
+        /*
+           Now it is safe to read/display the
+           Sepolia account balance.
+        */
+
+        const balance =
+            await provider.getBalance(sender);
+
+
+        document.getElementById("balance").innerText =
+            ethers.formatEther(balance) +
+            " SepETH";
+
+
+        status.innerText =
+            "CONNECTED SUCCESSFULLY\n\n" +
+
+            "Network: Sepolia\n" +
+
+            "Chain ID: " +
+            network.chainId.toString() +
+
+            "\nSender:\n" +
+            sender +
+
+            "\n\nNetwork verified. " +
+            "You may now prepare a transaction.";
+
+
+        lastObservedChainId = rawChainId;
+        lastObservedAccount = sender.toLowerCase();
+
+        enablePreview();
+
+    }
+
+
+    catch (error) {
+
+        status.innerText =
+            "CONNECTION / NETWORK CHECK\n\n" +
+            (error.shortMessage ||
+             error.message);
+    }
+}
+
+
+
+/* ====================================================
+   SWITCH DAPP TO SEPOLIA
+==================================================== */
+
+async function switchToSepolia() {
+
+    const status =
+        document.getElementById("status");
+
+
+    try {
+
+        if (!window.ethereum) {
+
+            throw new Error(
+                "MetaMask not detected."
+            );
+        }
+
+
+        disableTransactions();
+
+
+        status.innerText =
+            "Requesting MetaMask to switch this dApp " +
+            "to Sepolia...";
+
+
+        /*
+           Sepolia:
+           decimal = 11155111
+           hexadecimal = 0xaa36a7
+        */
+
+        await window.ethereum.request({
+
+            method: "wallet_switchEthereumChain",
+
+            params: [
+                {
+                    chainId: "0xaa36a7"
+                }
+            ]
+
+        });
+
+
+        status.innerText =
+            "MetaMask accepted the Sepolia network switch.\n\n" +
+            "Re-checking network...";
+
+
+        /*
+           Reconnect after switching so that the page
+           independently verifies the new chain.
+        */
+
+        await connectWallet();
+
+    }
+
+
+    catch (error) {
+
+        disableTransactions();
+
+
+        status.innerText =
+            "NETWORK SWITCH FAILED / CANCELLED\n\n" +
+            (error.shortMessage ||
+             error.message);
+    }
+}
+
+
+
+/* ====================================================
+   PREVIEW TRANSACTION
+==================================================== */
+
+async function previewTransaction() {
+
+    const status =
+        document.getElementById("status");
+
+
+    /*
+       Every transaction operation checks our
+       safety gate again.
+    */
+
+    if (!networkVerified) {
+
+        disableTransactions();
+
+        status.innerText =
+            "TRANSACTION BLOCKED\n\n" +
+            "Sepolia network has not been verified.";
+
+        return;
+    }
+
+
+    try {
+
+        if (!provider || !signer || !sender) {
+
+            throw new Error(
+                "Connect MetaMask first."
+            );
+        }
+
+        /*
+           Re-check MetaMask's active account immediately
+           before generating the preview.
+        */
+        const accountOK = await verifyCurrentAccount();
+
+        if (!accountOK) {
+            clearPreview();
+            throw new Error(
+                "ACCOUNT CHANGED — SIGNER REVALIDATION REQUIRED."
+            );
+        }
+
+
+        /*
+           Re-check network immediately before preview.
+        */
+
+        const network =
+            await provider.getNetwork();
+
+
+        if (network.chainId !== 11155111n) {
+
+            disableTransactions();
+
+            throw new Error(
+                "NETWORK CHANGED — SEPOLIA REQUIRED."
+            );
+        }
+
+
+        const receiver =
+            document
+            .getElementById("receiver")
+            .value
+            .trim();
+
+
+        const amount =
+            document
+            .getElementById("amount")
+            .value
+            .trim();
+
+
+        /*
+           Validate receiver address.
+        */
+
+        if (!ethers.isAddress(receiver)) {
+
+            document.getElementById("sendButton").disabled =
+                true;
+
+            throw new Error(
+                "Invalid receiver address."
+            );
+        }
+
+
+        /*
+           Prevent accidental self-transfer.
+        */
+
+        if (
+            receiver.toLowerCase() ===
+            sender.toLowerCase()
+        ) {
+
+            document.getElementById("sendButton").disabled =
+                true;
+
+            throw new Error(
+                "Sender and receiver are the same account.\n" +
+                "Use a different receiver for this practical."
+            );
+        }
+
+
+        /*
+           Validate amount.
+        */
+
+        if (
+            !amount ||
+            Number(amount) <= 0
+        ) {
+
+            document.getElementById("sendButton").disabled =
+                true;
+
+            throw new Error(
+                "Enter a valid positive SepETH amount."
+            );
+        }
+
+
+        /*
+           Convert decimal SepETH into integer wei.
+        */
+
+        const value =
+            ethers.parseEther(amount);
+
+
+        /*
+           Populate preview.
+        */
+
+        document.getElementById("previewFrom").innerText =
+            sender;
+
+
+        document.getElementById("previewTo").innerText =
+            receiver;
+
+
+        document.getElementById("previewETH").innerText =
+            amount + " SepETH";
+
+
+        document.getElementById("previewWei").innerText =
+            value.toString() + " wei";
+
+
+        document.getElementById("previewNetwork").innerText =
+            "Sepolia — Chain ID 11155111";
+
+
+        /*
+           Preview successful:
+           now allow Send.
+        */
+
+        document.getElementById("sendButton").disabled =
+            false;
+
+
+        status.innerText =
+            "TRANSACTION PREVIEW READY\n\n" +
+
+            "From:\n" +
+            sender +
+
+            "\n\nTo:\n" +
+            receiver +
+
+            "\n\nAmount: " +
+            amount +
+            " SepETH" +
+
+            "\nWei: " +
+            value.toString() +
+
+            "\n\nNetwork: Sepolia" +
+
+            "\n\nNo transaction has been sent yet.\n" +
+
+            "Review the values above before clicking " +
+            "'Send Transaction'.";
+
+    }
+
+
+    catch (error) {
+
+        document.getElementById("sendButton").disabled =
+            true;
+
+
+        status.innerText =
+            "PREVIEW ERROR\n\n" +
+            (error.shortMessage ||
+             error.message);
+    }
+}
+
+
+
+/* ====================================================
+   SEND TRANSACTION
+==================================================== */
+
+async function sendEther() {
+
+    const status =
+        document.getElementById("status");
+
+    /*
+       DOUBLE-SEND GUARD:
+       Lock immediately, BEFORE awaiting MetaMask.
+       A second click cannot start another transaction.
+    */
+    if (transactionInProgress) {
+        status.innerText =
+            "TRANSACTION ALREADY IN PROGRESS\n\n" +
+            "Do not submit or approve the same transfer again.";
+        return;
+    }
+
+    transactionInProgress = true;
+    document.getElementById("sendButton").disabled = true;
+    document.getElementById("previewButton").disabled = true;
+
+    try {
+
+        if (!networkVerified) {
+            throw new Error(
+                "TRANSACTION BLOCKED — " +
+                "Sepolia has not been verified."
+            );
+        }
+
+        if (!provider || !signer || !sender) {
+            throw new Error(
+                "Connect MetaMask first."
+            );
+        }
+
+        /*
+           Re-check the active MetaMask account immediately
+           before requesting a signature.
+        */
+        const accountOK = await verifyCurrentAccount();
+
+        if (!accountOK) {
+            throw new Error(
+                "ACCOUNT CHANGED — TRANSACTION BLOCKED."
+            );
+        }
+
+        /*
+           Re-check the raw chain directly from MetaMask,
+           then confirm the ethers.js network too.
+        */
+        const rawChainId = await window.ethereum.request({
+            method: "eth_chainId"
+        });
+
+        const network = await provider.getNetwork();
+
+        if (
+            rawChainId.toLowerCase() !== "0xaa36a7" ||
+            network.chainId !== 11155111n
+        ) {
+            disableTransactions();
+
+            throw new Error(
+                "NETWORK CHANGED — TRANSACTION BLOCKED."
+            );
+        }
+
+        const receiver =
+            document
+            .getElementById("receiver")
+            .value
+            .trim();
+
+        const amount =
+            document
+            .getElementById("amount")
+            .value
+            .trim();
+
+        if (!ethers.isAddress(receiver)) {
+            throw new Error(
+                "Invalid receiver address."
+            );
+        }
+
+        if (
+            receiver.toLowerCase() ===
+            sender.toLowerCase()
+        ) {
+            throw new Error(
+                "Sender and receiver cannot be the same " +
+                "for this practical."
+            );
+        }
+
+        if (
+            !amount ||
+            Number(amount) <= 0
+        ) {
+            throw new Error(
+                "Enter a valid positive SepETH amount."
+            );
+        }
+
+        const value =
+            ethers.parseEther(amount);
+
+        /*
+           Protect against editing the form AFTER Preview.
+           The values being sent must still match the preview.
+        */
+        const previewFrom =
+            document.getElementById("previewFrom").innerText.trim();
+
+        const previewTo =
+            document.getElementById("previewTo").innerText.trim();
+
+        const previewETH =
+            document.getElementById("previewETH").innerText.trim();
+
+        if (
+            previewFrom.toLowerCase() !== sender.toLowerCase() ||
+            previewTo.toLowerCase() !== receiver.toLowerCase() ||
+            previewETH !== amount + " SepETH"
+        ) {
+            throw new Error(
+                "TRANSACTION DETAILS CHANGED AFTER PREVIEW.\n" +
+                "Generate a fresh preview before sending."
+            );
+        }
+
+        status.innerText =
+            "WAITING FOR METAMASK APPROVAL...\n\n" +
+
+            "From:\n" +
+            sender +
+
+            "\n\nTo:\n" +
+            receiver +
+
+            "\n\nAmount: " +
+            amount +
+            " SepETH" +
+
+            "\n\nOnly ONE transaction request is active.\n" +
+            "Check the MetaMask confirmation window and approve only once.";
+
+        /*
+           MetaMask asks the user to approve/sign.
+           The dApp never receives the private key.
+        */
+        const tx =
+            await signer.sendTransaction({
+                to: receiver,
+                value: value
+            });
+
+        document.getElementById("txHash").innerText =
+            tx.hash;
+
+        status.innerText =
+            "TRANSACTION SUBMITTED ✓\n\n" +
+
+            "Transaction Hash:\n" +
+            tx.hash +
+
+            "\n\nWaiting for Sepolia block confirmation...\n" +
+            "Send remains locked.";
+
+        const receipt =
+            await tx.wait();
+
+        document.getElementById("blockNumber").innerText =
+            receipt.blockNumber;
+
+        const newBalance =
+            await provider.getBalance(sender);
+
+        const formattedBalance =
+            ethers.formatEther(newBalance);
+
+        document.getElementById("newBalance").innerText =
+            formattedBalance +
+            " SepETH";
+
+        document.getElementById("balance").innerText =
+            formattedBalance +
+            " SepETH";
+
+        status.innerText =
+            "TRANSACTION CONFIRMED ✓\n\n" +
+
+            "Sepolia accepted the transaction.\n\n" +
+
+            "Transaction Hash:\n" +
+            tx.hash +
+
+            "\n\nBlock Number:\n" +
+            receipt.blockNumber +
+
+            "\n\nSender balance has been refreshed.\n\n" +
+            "A fresh Preview is required for the next transaction.";
+
+        /*
+           Keep Send disabled after success.
+           Student must explicitly preview the next transfer.
+        */
+        clearPreview();
+    }
+
+    catch (error) {
+
+        status.innerText =
+            "TRANSACTION FAILED / CANCELLED\n\n" +
+            (error.shortMessage ||
+             error.message) +
+
+            "\n\nNo automatic retry will be attempted.";
+
+        /*
+           Never automatically resubmit a failed/cancelled request.
+           Re-enable Preview only if both safety gates still pass.
+        */
+        clearPreview();
+    }
+
+    finally {
+        transactionInProgress = false;
+
+        if (networkVerified && accountVerified) {
+            document.getElementById("previewButton").disabled = false;
+        }
+    }
+}
+
+
+/* ====================================================
+   ROBUST METAMASK STATE WATCHER
+   Events are retained, but correctness does not depend
+   on events arriving. MetaMask is polled once per second.
+==================================================== */
+
+async function refreshFromMetaMask(reason = "STATE CHANGE") {
+
+    if (!window.ethereum || transactionInProgress || watcherBusy) return;
+
+    watcherBusy = true;
+    const status = document.getElementById("status");
+
+    try {
+        const rawChainId = await window.ethereum.request({
+            method: "eth_chainId"
+        });
+
+        const accounts = await window.ethereum.request({
+            method: "eth_accounts"
+        });
+
+        const activeAccount =
+            accounts && accounts.length > 0 ? accounts[0] : null;
+
+        if (!activeAccount) {
+            disableTransactions();
+            clearPreview();
+
+            provider = null;
+            signer = null;
+            sender = null;
+
+            document.getElementById("rawChain").innerText = rawChainId || "-";
+            document.getElementById("ethersChain").innerText = "-";
+            document.getElementById("sender").innerText = "-";
+            document.getElementById("txSender").innerText = "Connect MetaMask first";
+            document.getElementById("balance").innerText = "-";
+
+            document.getElementById("accountValidation").innerHTML =
+                "<span class='errorText'>NOT CONNECTED / NOT AUTHORIZED</span>";
+
+            const accountAlert = document.getElementById("accountAlert");
+            accountAlert.className = "errorBox";
+            accountAlert.innerHTML =
+                "⚠ NO METAMASK ACCOUNT AUTHORIZED" +
+                "<br><br>Click Connect MetaMask to authorize an account.";
+
+            status.innerText =
+                reason + "\n\nNo MetaMask account is currently authorized.";
+
+            lastObservedChainId = rawChainId;
+            lastObservedAccount = null;
+            return;
+        }
+
+        provider = new ethers.BrowserProvider(window.ethereum);
+        signer = await provider.getSigner();
+        sender = await signer.getAddress();
+
+        const network = await provider.getNetwork();
+
+        document.getElementById("metamask").innerHTML =
+            "<span class='successText'>YES ✓</span>";
+        document.getElementById("rawChain").innerText = rawChainId;
+        document.getElementById("ethersChain").innerText =
+            network.chainId.toString();
+        document.getElementById("sender").innerText = sender;
+        document.getElementById("txSender").innerText = sender;
+
+        if (activeAccount.toLowerCase() !== sender.toLowerCase()) {
+            disableTransactions();
+            clearPreview();
+
+            showAccountMismatch(
+                "MetaMask active account: " + activeAccount +
+                "<br>ethers.js Signer: " + sender
+            );
+
+            status.innerText =
+                reason +
+                "\n\nACCOUNT / SIGNER MISMATCH — TRANSACTION BLOCKED.";
+
+            lastObservedChainId = rawChainId;
+            lastObservedAccount = activeAccount.toLowerCase();
+            return;
+        }
+
+        showAccountVerified();
+
+        const isSepolia =
+            rawChainId.toLowerCase() === "0xaa36a7" &&
+            network.chainId === 11155111n;
+
+        if (!isSepolia) {
+            networkVerified = false;
+            document.getElementById("previewButton").disabled = true;
+            document.getElementById("sendButton").disabled = true;
+            clearPreview();
+
+            document.getElementById("networkValidation").innerHTML =
+                "<span class='errorText'>MISMATCH ❌</span>";
+
+            const alert = document.getElementById("networkAlert");
+            alert.className = "errorBox";
+            alert.innerHTML =
+                "⚠ NETWORK MISMATCH — TRANSACTION BLOCKED" +
+                "<br><br>Detected by MetaMask: " + rawChainId +
+                "<br>Detected by ethers.js: " + network.chainId.toString() +
+                "<br><br>Required Network: SEPOLIA" +
+                "<br>Required Chain ID: 11155111 / 0xaa36a7" +
+                "<br><br>DO NOT SEND A TRANSACTION." +
+                "<br>CLICK 'SWITCH TO SEPOLIA' ABOVE.";
+
+            document.getElementById("balance").innerText =
+                "NOT READ — WRONG NETWORK";
+
+            status.innerText =
+                reason +
+                "\n\nNETWORK MISMATCH — TRANSACTION BLOCKED." +
+                "\n\nCurrent chain: " + rawChainId +
+                "\nRequired: Sepolia (0xaa36a7).";
+
+            lastObservedChainId = rawChainId;
+            lastObservedAccount = activeAccount.toLowerCase();
+            return;
+        }
+
+        networkVerified = true;
+        accountVerified = true;
+
+        document.getElementById("networkValidation").innerHTML =
+            "<span class='successText'>MATCH — SEPOLIA VERIFIED ✓</span>";
+
+        const networkAlert = document.getElementById("networkAlert");
+        networkAlert.className = "successBox";
+        networkAlert.innerHTML =
+            "✓ NETWORK VERIFIED — SEPOLIA" +
+            "<br>Chain ID: 11155111 / 0xaa36a7" +
+            "<br>TRANSACTIONS MAY PROCEED.";
+
+        const balance = await provider.getBalance(sender);
+        document.getElementById("balance").innerText =
+            ethers.formatEther(balance) + " SepETH";
+
+        enablePreview();
+
+        status.innerText =
+            reason +
+            "\n\nMETAMASK STATE VERIFIED ✓" +
+            "\n\nNetwork: Sepolia" +
+            "\nSender:\n" + sender +
+            "\n\nSigner and balance are current.";
+
+        lastObservedChainId = rawChainId;
+        lastObservedAccount = activeAccount.toLowerCase();
+    }
+    catch (error) {
+        disableTransactions();
+        clearPreview();
+        status.innerText =
+            "METAMASK STATE REVALIDATION ERROR\n\n" +
+            (error.shortMessage || error.message);
+    }
+    finally {
+        watcherBusy = false;
+    }
+}
+
+
+async function pollMetaMaskState() {
+
+    if (!window.ethereum || transactionInProgress || watcherBusy) return;
+
+    try {
+        const rawChainId = await window.ethereum.request({
+            method: "eth_chainId"
+        });
+
+        const accounts = await window.ethereum.request({
+            method: "eth_accounts"
+        });
+
+        const activeAccount =
+            accounts && accounts.length > 0
+                ? accounts[0].toLowerCase()
+                : null;
+
+        /* First observation establishes a baseline only.
+           It does NOT auto-connect an untouched fresh page. */
+        if (lastObservedChainId === null) {
+            lastObservedChainId = rawChainId;
+            lastObservedAccount = activeAccount;
+            return;
+        }
+
+        const chainChanged = rawChainId !== lastObservedChainId;
+        const accountChanged = activeAccount !== lastObservedAccount;
+
+        if (chainChanged || accountChanged) {
+            lastObservedChainId = rawChainId;
+            lastObservedAccount = activeAccount;
+
+            const reasons = [];
+            if (chainChanged) reasons.push("NETWORK CHANGE DETECTED");
+            if (accountChanged) reasons.push("ACCOUNT CHANGE DETECTED");
+
+            disableTransactions();
+            clearPreview();
+
+            document.getElementById("status").innerText =
+                "🔄 " + reasons.join(" + ") +
+                "\n\nRevalidating MetaMask state...";
+
+            await refreshFromMetaMask(reasons.join(" + "));
+        }
+    }
+    catch (error) {
+        document.getElementById("status").innerText =
+            "METAMASK WATCHER ERROR\n\n" +
+            (error.shortMessage || error.message);
+    }
+}
+
+setInterval(pollMetaMaskState, 1000);
+
+
+/* ====================================================
+   REACT TO METAMASK CHANGES
+   Fast path: events trigger immediate revalidation.
+   Polling above remains the robust fallback.
+==================================================== */
+
+if (window.ethereum) {
+
+    window.ethereum.on("accountsChanged", async (accounts) => {
+        if (transactionInProgress) return;
+
+        disableTransactions();
+        clearPreview();
+
+        lastObservedAccount =
+            accounts && accounts.length > 0
+                ? accounts[0].toLowerCase()
+                : null;
+
+        document.getElementById("status").innerText =
+            "🔄 ACCOUNT CHANGE DETECTED\n\nRefreshing Signer / Sender...";
+
+        await refreshFromMetaMask("ACCOUNT CHANGE DETECTED");
+    });
+
+    window.ethereum.on("chainChanged", async (chainId) => {
+        if (transactionInProgress) return;
+
+        disableTransactions();
+        clearPreview();
+        lastObservedChainId = chainId;
+
+        document.getElementById("status").innerText =
+            "🔄 NETWORK CHANGE DETECTED\n\nRevalidating network and signer...";
+
+        await refreshFromMetaMask("NETWORK CHANGE DETECTED");
+    });
+}
+
+</script>
+
+</body>
+</html>
